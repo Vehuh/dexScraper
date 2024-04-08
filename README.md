@@ -6,4 +6,4 @@
 ## How to use
 
 - Modify the main.py for the tokens you want to extract data for
-- Execute the main.py and the output will be all the pairs info found by Dex Screener
+- Execute the main.py and the output will be all the pairs info found by Dex Screener or Gecko Terminal, depending on the chosen function
