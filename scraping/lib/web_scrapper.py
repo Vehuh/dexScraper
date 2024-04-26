@@ -437,7 +437,7 @@ class DexScraper:
         return (timestamp, open, high, low, close, volume)
 
     def post_gecko_data_to_overkill(self, data: dict):
-        url = "https://api.princeofcrypto.com/v1/coin/gecko-terminal/price"
+        url = "{}/v1/coin/gecko-terminal/price".format(APP_SETTINGS.overkill_api_url)
 
         headers = {
             "x-api-key": APP_SETTINGS.x_api_key,
@@ -452,7 +452,7 @@ class DexScraper:
             raise APIError(f"POST Gecko Price to Overkill Failed: {api_response.text}")
 
     def get_watch_list_from_overkill(self):
-        url = "https://api.princeofcrypto.com/v1/coin/watch"
+        url = "{}/v1/coin/watch".format(APP_SETTINGS.overkill_api_url)
 
         headers = {
             "x-api-key": APP_SETTINGS.x_api_key,

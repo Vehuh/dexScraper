@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     ## web_scrapper.py
     x_api_key: str
     x_api_secret: str
+    overkill_api_url: str = "https://api.princeofcrypto.com"
 
 
 APP_SETTINGS = Settings()
