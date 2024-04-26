@@ -386,3 +386,23 @@ class DexScraper:
             return api_response.json()
         else:
             raise APIError(f"GET Watch List from Overkill Failed: {api_response.text}")
+        
+    def delete_coin_from_watch_list (self, token_data : dict):
+        url = "https://api.princeofcrypto.com/v1/coin/watch"
+        headers = {
+            "x-api-key": APP_SETTINGS.x_api_key,
+            "x-api-secret": APP_SETTINGS.x_api_secret,
+            **self._headers,
+        }
+        if not(token_data):
+            raise APIError("No token information to delete")
+        logger.info(token_data)
+        payload = {
+            "token_name": token_data['token_name'],
+            "token_ticker": token_data['token_ticker']
+        }
+        api_response = requests.delete(url, headers=headers, json=payload)
+        if api_response.status_code == 200:
+            return api_response.json()
+        else:
+            raise APIError(f"DELETE Coin from Watch List from Overkill Failed: {api_response.text}")
