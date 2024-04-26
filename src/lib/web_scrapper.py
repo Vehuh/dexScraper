@@ -31,6 +31,7 @@ class ScraperThread:
         self._pool_address: Optional[str] = None
         self._last_updated: Optional[int] = None
         self._response_history: list = []
+        self._watch_list_keys: list = []
 
         self._stop_event = threading.Event()
         self.thread = threading.Thread(target=self._run, args=args, kwargs=kwargs)
@@ -157,19 +158,30 @@ class DexThreadManager:
 
     @watch_list.setter
     def watch_list(self, value: list):
+        self._watch_list_keys = [
+            f"{token_data.get('token_network')}_{token_data.get('token_address')}"
+            for token_data in value
+        ]
         self._watch_list = value
         self._manage_threads()
 
+    @property
+    def watch_list_keys(self):
+        return self._watch_list_keys
+
     def _manage_threads(self):
         # stop threads that are not in watch_list
+        marked_for_deletion = []
         for key, scapper in self.scrappers.items():
-            if key not in self.watch_list:
+            if key not in self.watch_list_keys:
                 scapper.stop()
-                del self.scrappers[key]
+                marked_for_deletion.append(key)
+        for key in marked_for_deletion:
+            self.scrappers.pop(key)
         # start threads that are in watch_list
         for token_data in self.watch_list:
             token_address = token_data.get("token_address")
-            network = token_data.get("token_network", "solana")
+            network = token_data.get("token_network")
             token_data.pop("token_network", None)  # Remove key if it exists
             token_data.pop("token_address", None)  # Remove key if it exists
             if f"{network}_{token_address}" not in self.scrappers:
