@@ -8,5 +8,5 @@ WORKDIR /usr/app
 
 COPY ./src ./
 
-CMD ["python", "src/main.py"]
+CMD ["python", "main.py"]
 
