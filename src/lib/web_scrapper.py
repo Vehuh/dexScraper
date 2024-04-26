@@ -205,7 +205,7 @@ class DexThreadManager:
                 "result", []
             )
             logger.info("Watch List Updated")
-            logger.info(len(self.scrappers))
+            logger.info(f"current size: {len(self.scrappers)}")
             time.sleep(60)
 
 
