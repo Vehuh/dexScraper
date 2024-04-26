@@ -423,6 +423,7 @@ class DexScraper:
         api_response = requests.get(url, headers=self._headers)
         api_response.raise_for_status()
         api_data = api_response.json()
+        logger.debug(api_data)
         try:
             data = api_data["data"]
             tohlcv = data["attributes"]["ohlcv_list"][0]
