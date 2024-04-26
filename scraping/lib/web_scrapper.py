@@ -1,4 +1,6 @@
 import requests
+from .settings import APP_SETTINGS
+from .logging import logger
 
 
 class APIError(Exception):
@@ -205,7 +207,7 @@ class DexScraper:
             txs = data["attributes"]["transactions"]
             vol = data["attributes"]["volume_usd"]
             fdv = data["attributes"]["fdv"]
-            print("Name: ", name, "\nPrice USD: ", price, "\nMarket Cap: ", mc)
+            logger.info("Name: ", name, "\nPrice USD: ", price, "\nMarket Cap: ", mc)
         except KeyError as e:
             raise GeckoTerminalAPIError("KeyError in get_pool_from_gecko") from e
         return (name, price, mc)
@@ -262,14 +264,11 @@ class DexScraper:
     def post_gecko_data_to_overkill(self, data: dict):
         url = "https://api.princeofcrypto.com/v1/coin/gecko-terminal/price"
 
-        # TODO: add creadentials reader
-        with open("~/x-api-key.txt", "r") as file:
-            API_KEY = file.read()
-
-        with open("~/x-api-secret.txt", "r") as file:
-            API_SECRET = file.read()
-
-        headers = {"x-api-key": API_KEY, "x-api-secret": API_SECRET, **self._headers}
+        headers = {
+            "x-api-key": APP_SETTINGS.x_api_key,
+            "x-api-secret": APP_SETTINGS.x_api_secret,
+            **self._headers,
+        }
 
         api_response = requests.post(url, headers=headers, json=data)
         if api_response.status_code == 200:
@@ -280,13 +279,11 @@ class DexScraper:
     def get_watch_list_from_overkill(self):
         url = "https://api.princeofcrypto.com/v1/coin/watch-list"
 
-        # TODO: add creadentials reader
-        with open("~/x-api-key.txt", "r") as file:
-            API_KEY = file.read()
-
-        with open("~/x-api-secret.txt", "r") as file:
-            API_SECRET = file.read()
-        headers = {"x-api-key": API_KEY, "x-api-secret": API_SECRET, **self._headers}
+        headers = {
+            "x-api-key": APP_SETTINGS.x_api_key,
+            "x-api-secret": APP_SETTINGS.x_api_secret,
+            **self._headers,
+        }
         api_response = requests.get(url, headers=headers)
         if api_response.status_code == 200:
             return api_response.json()
