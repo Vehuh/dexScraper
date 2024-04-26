@@ -97,6 +97,7 @@ class ScraperThread:
                             time.sleep(1)
                             continue
                     olhcv_data = self._get_data()
+                    logger.debug(olhcv_data)
                     self.response_history = {
                         "timestamp": olhcv_data[0],
                         "open": olhcv_data[1],
@@ -128,6 +129,7 @@ class ScraperThread:
 
     def _post_data(self, tohlcv):
         if tohlcv is None:
+            logger.info("No data to post")
             return
         gecko_data = {
             "network": self.network,
