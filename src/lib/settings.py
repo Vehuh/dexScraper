@@ -3,7 +3,7 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-ENV_FILE_PATH = os.getenv("ENV_FILE_PATH", "./scraping/.env")
+ENV_FILE_PATH = os.getenv("ENV_FILE_PATH", "./src/.env")
 
 
 class Settings(BaseSettings):

@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r /requirements.txt
 WORKDIR /usr/app
 
 COPY ./src ./
+COPY ./src/.env ./
 
 CMD ["python", "main.py"]
 
