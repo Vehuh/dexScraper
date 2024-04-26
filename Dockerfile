@@ -6,7 +6,7 @@ RUN pip install --no-cache-dir -r /requirements.txt
 
 WORKDIR /usr/app
 
-COPY ./scraping ./
+COPY ./src ./
 
-CMD ["python", "scraping/main.py"]
+CMD ["python", "src/main.py"]
 
