@@ -114,6 +114,8 @@ class ScraperThread:
                     logger.error(f"RequestException in ScraperThread: {e}")
                 else:
                     self.last_updated = int(time.time()) + 60
+                finally:
+                    time.sleep(1)
 
     def start(self):
         self.thread.start()
