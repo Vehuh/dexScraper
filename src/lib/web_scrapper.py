@@ -112,7 +112,7 @@ class ScraperThread:
                 except requests.RequestException as e:
                     # if code is 429, wait for 60 seconds
                     logger.error(f"RequestException in ScraperThread: {e}")
-                finally:
+                else:
                     self.last_updated = int(time.time()) + 60
 
     def start(self):
