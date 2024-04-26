@@ -180,8 +180,11 @@ class DexThreadManager:
             self.scrappers.pop(key)
         # start threads that are in watch_list
         for token_data in self.watch_list:
-            token_address = token_data.get("token_address")
-            network = token_data.get("token_network")
+            try:
+                token_address = token_data.get("token_address")
+                network = token_data.get("token_network")
+            except KeyError as e:
+                raise APIError("Token address or network not found") from e
             token_data.pop("token_network", None)  # Remove key if it exists
             token_data.pop("token_address", None)  # Remove key if it exists
             if f"{network}_{token_address}" not in self.scrappers:
