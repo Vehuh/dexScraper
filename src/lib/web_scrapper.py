@@ -96,15 +96,23 @@ class ScraperThread:
                         if self.last_updated + self.sleep_time > int(time.time()):
                             time.sleep(1)
                             continue
-                    self.last_updated = self._post_data(self._get_data())
+                    olhcv_data = self._get_data()
+                    self.response_history = {
+                        "timestamp": olhcv_data[0],
+                        "open": olhcv_data[1],
+                        "high": olhcv_data[2],
+                        "low": olhcv_data[3],
+                        "close": olhcv_data[4],
+                        "volume": olhcv_data[5],
+                    }
+                    self.last_updated = self._post_data(olhcv_data)
                 except (GeckoTerminalAPIError, APIError) as e:
                     logger.error(f"APIError in ScraperThread: {e}")
                 except requests.RequestException as e:
                     # if code is 429, wait for 60 seconds
                     logger.error(f"RequestException in ScraperThread: {e}")
-                    if e.response.status_code == 429:
-                        logger.info("ScraperThread: waiting for 60 seconds")
-                        time.sleep(60)
+                finally:
+                    self.last_updated = int(time.time()) + 60
 
     def start(self):
         self.thread.start()
@@ -119,14 +127,8 @@ class ScraperThread:
         )
 
     def _post_data(self, tohlcv):
-        self.response_history = {
-            "timestamp": tohlcv[0],
-            "open": tohlcv[1],
-            "high": tohlcv[2],
-            "low": tohlcv[3],
-            "close": tohlcv[4],
-            "volume": tohlcv[5],
-        }
+        if tohlcv is None:
+            return
         gecko_data = {
             "network": self.network,
             "pool_address": self.pool_address,
