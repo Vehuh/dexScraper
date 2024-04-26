@@ -157,16 +157,12 @@ class DexThreadManager:
     def watch_list(self):
         return self._watch_list
 
-    @watch_list.getter
-    def watch_list(self) -> list:
-        return self._watch_list
-
     @watch_list.setter
     def watch_list(self, value: list):
         self._watch_list_keys = [
             f"{token_data.get('token_network')}_{token_data.get('token_address')}"
             for token_data in value
-        ]
+        ] 
         self._watch_list = value
         self._manage_threads()
 
@@ -216,108 +212,7 @@ class DexScraper:
     def __init__(self):
         self._name = "DegenAlphaRetriever"
         self._headers = {"Content-Type": "application/json"}
-        self._network_ids_for_gecko_terminal = [  # TODO: fix this, get from the API
-            "eth",
-            "bsc",
-            "polygon_pos",
-            "avax",
-            "movr",
-            "cro",
-            "one",
-            "boba",
-            "ftm",
-            "bch",
-            "aurora",
-            "metis",
-            "arbitrum",
-            "fuse",
-            "okexchain",
-            "kcc",
-            "iotx",
-            "celo",
-            "xdai",
-            "heco",
-            "glmr",
-            "optimism",
-            "nrg",
-            "wan",
-            "ronin",
-            "kai",
-            "mtr",
-            "velas",
-            "sdn",
-            "tlos",
-            "sys",
-            "oasis",
-            "astr",
-            "ela",
-            "milkada",
-            "dfk",
-            "evmos",
-            "solana",
-            "cfx",
-            "bttc",
-            "sxn",
-            "xdc",
-            "klaytn",
-            "kava",
-            "bitgert",
-            "tombchain",
-            "dogechain",
-            "findora",
-            "thundercore",
-            "arbitrum_nova",
-            "canto",
-            "ethereum_classic",
-            "step-network",
-            "ethw",
-            "godwoken",
-            "songbird",
-            "redlight_chain",
-            "tomochain",
-            "fx",
-            "platon_network",
-            "exosama",
-            "oasys",
-            "bitkub_chain",
-            "wemix",
-            "flare",
-            "onus",
-            "aptos",
-            "core",
-            "goerli-testnet",
-            "filecoin",
-            "lung-chain",
-            "zksync",
-            "poochain",
-            "loop-network",
-            "multivac",
-            "polygon-zkevm",
-            "eos-evm",
-            "apex",
-            "callisto",
-            "ultron",
-            "sui-network",
-            "pulsechain",
-            "trustless-computer",
-            "enuls",
-            "tenet",
-            "rollux",
-            "starknet-alpha",
-            "mantle",
-            "neon-evm",
-            "linea",
-            "base",
-            "bitrock",
-            "opbnb",
-            "maxxchain",
-            "sei-network",
-            "shibarium",
-            "manta-pacific",
-            "sepolia-testnet",
-            "hedera-hashgraph",
-            "shimmerevm",
-        ]
+        self._network_ids_for_gecko_terminal = self.get_list_of_networks_from_gecko()
 
     # Getter for object's name haha
     @property
