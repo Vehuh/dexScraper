@@ -202,6 +202,8 @@ class DexThreadManager:
             self.watch_list = self.scraper.get_watch_list_from_overkill().get(
                 "result", []
             )
+            logger.info("Watch List Updated")
+            logger.info(len(self.scrappers))
             time.sleep(60)
 
 
@@ -460,6 +462,10 @@ class DexScraper:
             "x-api-secret": APP_SETTINGS.x_api_secret,
             **self._headers,
         }
+
+        logger.debug(data)
+        if not data:
+            raise APIError("Data is empty")
 
         api_response = requests.post(url, headers=headers, json=data)
         if api_response.status_code == 200:
