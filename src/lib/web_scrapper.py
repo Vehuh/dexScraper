@@ -106,7 +106,7 @@ class ScraperThread:
                         "close": olhcv_data[4],
                         "volume": olhcv_data[5],
                     }
-                    self.last_updated = self._post_data(olhcv_data)
+                    self._post_data(olhcv_data)
                 except (GeckoTerminalAPIError, APIError) as e:
                     logger.error(f"APIError in ScraperThread: {e}")
                 except requests.RequestException as e:
@@ -142,7 +142,6 @@ class ScraperThread:
             **self.response_history[-1],
         }
         self._scraper.post_gecko_data_to_overkill(data=gecko_data)
-        return tohlcv[0]
 
 
 class DexThreadManager:
