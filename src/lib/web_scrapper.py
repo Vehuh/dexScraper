@@ -175,6 +175,7 @@ class DexThreadManager:
 
     def _manage_threads(self):
         # stop threads that are not in watch_list
+        logger.debug(self.scrappers.keys())
         marked_for_deletion = []
         for key, scapper in self.scrappers.items():
             if key not in self.watch_list_keys:
@@ -183,6 +184,7 @@ class DexThreadManager:
         for key in marked_for_deletion:
             self.scrappers.pop(key)
         # start threads that are in watch_list
+        logger.debug(self.scrappers.keys())
         for token_data in self.watch_list:
             try:
                 token_address = token_data.get("token_address")
