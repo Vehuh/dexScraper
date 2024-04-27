@@ -393,7 +393,7 @@ class DexScraper:
             vol = top_pool["volume_usd"]
             fdv = top_pool["fdv"]
         except (KeyError, IndexError) as e:
-            raise GeckoTerminalAPIError("KeyError in get_top_pool_from_gecko") from e
+            raise GeckoTerminalAPIError("Error in get_top_pool_from_gecko") from e
         return (pool_name, pool_address, price)
 
     def get_ohlcv(
