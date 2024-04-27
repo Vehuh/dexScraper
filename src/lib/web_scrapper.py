@@ -22,7 +22,7 @@ class DexscreenerAPIError(Exception):
 class ScraperThread:
 
     sleep_time: int = 60
-    history_limit: int = 50
+    history_limit: int = 500
 
     def __init__(self, network: str, token_address: str, *args, **kwargs):
         self._scraper = DexScraper()
