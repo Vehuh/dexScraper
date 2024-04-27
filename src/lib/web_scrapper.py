@@ -5,6 +5,7 @@ import threading
 from typing import Optional
 from .settings import APP_SETTINGS
 from .logging import logger
+from .indicators import hma, rsi, wma, NotEnoughDataError, NotDataSeriesError
 
 
 class APIError(Exception):
@@ -22,7 +23,7 @@ class DexscreenerAPIError(Exception):
 class ScraperThread:
 
     sleep_time: int = 60
-    history_limit: int = 50
+    history_limit: int = 500
 
     def __init__(self, network: str, token_address: str, *args, **kwargs):
         self._scraper = DexScraper()
@@ -35,6 +36,47 @@ class ScraperThread:
 
         self._stop_event = threading.Event()
         self.thread = threading.Thread(target=self._run, args=args, kwargs=kwargs)
+
+    def __repr__(self):
+        return (
+            f"ScraperThread(network={self.network}, token_address={self.token_address})"
+        )
+
+    def __str__(self):
+        return (
+            f"ScraperThread(network={self.network}, token_address={self.token_address})"
+        )
+
+    def __del__(self):
+        self.stop()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stop()
+
+    def __eq__(self, other):
+        return (
+            self.network == other.network and self.token_address == other.token_address
+        )
+
+    def is_token_still_trending(self):
+        close_prices = [data["close"] for data in self.response_history]
+        try:
+            hmaval = hma(src=close_prices, length=81)
+            rsi_val = rsi(src=close_prices, length=21)
+            wma_val = wma(src=rsi_val, length=10)
+        except (NotEnoughDataError, NotDataSeriesError):
+            return True
+        else:
+            if (
+                hmaval[-1] > close_prices[-1]
+                and rsi_val[-1] < 70
+                and wma_val[-1] > rsi_val[-1]
+            ):
+                return False
+            return True
 
     @property
     def scraper(self):
@@ -81,6 +123,8 @@ class ScraperThread:
         return self._token_address
 
     def _run(self, *args, **kwargs):
+        self.last_updated = int(time.time())
+        # TODO: fetch self.response_history from overkill API - if possible (because maybe the thread was stopped and restarted)
         while not self._stop_event.is_set():
             if "token_platform_address" not in kwargs:
                 _, self.pool_address, _ = self.scraper.get_top_pool_from_gecko(
@@ -91,31 +135,38 @@ class ScraperThread:
             if (self.network in self.scraper.network_ids_for_gecko_terminal) and (
                 self.token_address is not None
             ):  # If valid name of network
+
                 try:
-                    if self.last_updated is not None:
-                        if self.last_updated + self.sleep_time > int(time.time()):
-                            time.sleep(1)
-                            continue
-                    olhcv_data = self._get_data()
-                    logger.debug(olhcv_data)
-                    self.response_history = {
-                        "timestamp": olhcv_data[0],
-                        "open": olhcv_data[1],
-                        "high": olhcv_data[2],
-                        "low": olhcv_data[3],
-                        "close": olhcv_data[4],
-                        "volume": olhcv_data[5],
-                    }
-                    self._post_data(olhcv_data)
-                except (GeckoTerminalAPIError, APIError) as e:
+                    rest_api_data = self._get_data()
+                    self.last_updated = self._post_data(rest_api_data)
+                except GeckoTerminalAPIError as e:
+                    logger.error(f"GeckoTerminalAPIError in ScraperThread: {e}")
+                except APIError as e:
                     logger.error(f"APIError in ScraperThread: {e}")
                 except requests.RequestException as e:
-                    # if code is 429, wait for 60 seconds
                     logger.error(f"RequestException in ScraperThread: {e}")
                 else:
-                    self.last_updated = int(time.time()) + 60
+                    self.last_updated += self.sleep_time
                 finally:
-                    time.sleep(1)
+                    if not self.is_token_still_trending():
+                        token_name, token_ticker = kwargs.get("token_name"), kwargs.get(
+                            "token_ticker"
+                        )
+                        self._post_delete(
+                            {
+                                "token_name": token_name,
+                                "token_ticker": token_ticker,
+                            }
+                        )
+                        logger.info(f"Token {token_name} deleted from watch list")
+                    if self.last_updated > int(time.time()):
+                        time.sleep(self.last_updated - int(time.time()))
+                    else:
+                        time.sleep(self.sleep_time)
+                    logger.info(
+                        f"Thread for {self.network} {self.pool_address} resumed"
+                    )
+        logger.info(f"Thread for {self.network} {self.pool_address} stopped")
 
     def start(self):
         self.thread.start()
@@ -125,9 +176,20 @@ class ScraperThread:
         self.thread.join()
 
     def _get_data(self):
-        return self._scraper.get_ohlcv(
+        tohlcv = self._scraper.get_ohlcv(
             network=self.network, pool_address=self.pool_address
         )
+        logger.debug(tohlcv)
+        logger.info(f"Data fetched for {self.network} {self.pool_address}")
+        self.response_history = {
+            "timestamp": tohlcv[0],
+            "open": tohlcv[1],
+            "high": tohlcv[2],
+            "low": tohlcv[3],
+            "close": tohlcv[4],
+            "volume": tohlcv[5],
+        }
+        return tohlcv
 
     def _post_data(self, tohlcv):
         if tohlcv is None:
@@ -144,6 +206,11 @@ class ScraperThread:
             **self.response_history[-1],
         }
         self._scraper.post_gecko_data_to_overkill(data=gecko_data)
+        logger.info(f"Data posted for {self.network} {self.pool_address}")
+        return tohlcv[0]
+
+    def _post_delete(self, token_data):
+        return self._scraper.delete_coin_from_watch_list(token_data)
 
 
 class DexThreadManager:
@@ -159,10 +226,13 @@ class DexThreadManager:
 
     @watch_list.setter
     def watch_list(self, value: list):
+        if len(value) >= self.threads_limit:
+            logger.error("Threads limit reached, setting maximum threads")
+            value = value[: self.threads_limit]
         self._watch_list_keys = [
             f"{token_data.get('token_network')}_{token_data.get('token_address')}"
             for token_data in value
-        ] 
+        ]
         self._watch_list = value
         self._manage_threads()
 
@@ -172,6 +242,7 @@ class DexThreadManager:
 
     def _manage_threads(self):
         # stop threads that are not in watch_list
+        logger.debug(self.scrappers.keys())
         marked_for_deletion = []
         for key, scapper in self.scrappers.items():
             if key not in self.watch_list_keys:
@@ -180,6 +251,7 @@ class DexThreadManager:
         for key in marked_for_deletion:
             self.scrappers.pop(key)
         # start threads that are in watch_list
+        logger.debug(self.scrappers.keys())
         for token_data in self.watch_list:
             try:
                 token_address = token_data.get("token_address")
@@ -188,15 +260,18 @@ class DexThreadManager:
                 raise APIError("Token address or network not found") from e
             token_data.pop("token_network", None)  # Remove key if it exists
             token_data.pop("token_address", None)  # Remove key if it exists
-            if f"{network}_{token_address}" not in self.scrappers:
-                if len(self.scrappers) >= self.threads_limit:
-                    logger.error("Threads limit reached")
-                    break
-                logger.debug(token_data)
+            logger.debug(token_data)
+            if f"{network}_{token_address}" not in self.scrappers.keys():
                 self.scrappers[f"{network}_{token_address}"] = ScraperThread(
                     network, token_address, **token_data
                 )
                 self.scrappers[f"{network}_{token_address}"].start()
+            for scrapper in self.scrappers.values():
+                if not scrapper.thread.is_alive():
+                    logger.warning(f"Thread for {scrapper} is not alive, restarting")
+                    scrapper.start()
+        logger.info("Threads updated")
+        logger.info(f"current size: {len(self.scrappers)}")
 
     def start(self):
         while True:
@@ -204,7 +279,6 @@ class DexThreadManager:
                 "result", []
             )
             logger.info("Watch List Updated")
-            logger.info(f"current size: {len(self.scrappers)}")
             time.sleep(60)
 
 
@@ -322,8 +396,8 @@ class DexScraper:
             txs = top_pool["transactions"]
             vol = top_pool["volume_usd"]
             fdv = top_pool["fdv"]
-        except KeyError as e:
-            raise GeckoTerminalAPIError("KeyError in get_top_pool_from_gecko") from e
+        except (KeyError, IndexError) as e:
+            raise GeckoTerminalAPIError("Error in get_top_pool_from_gecko") from e
         return (pool_name, pool_address, price)
 
     def get_ohlcv(
@@ -350,8 +424,8 @@ class DexScraper:
             low = tohlcv[3]
             close = tohlcv[4]
             volume = tohlcv[5]
-        except KeyError as e:
-            raise GeckoTerminalAPIError("KeyError in get_ohlcv") from e
+        except (KeyError, IndexError) as e:
+            raise GeckoTerminalAPIError("Error in get_ohlcv") from e
         return (timestamp, open, high, low, close, volume)
 
     def post_gecko_data_to_overkill(self, data: dict):
@@ -368,10 +442,8 @@ class DexScraper:
             raise APIError("Data is empty")
 
         api_response = requests.post(url, headers=headers, json=data)
-        if api_response.status_code == 200:
-            return api_response.json()
-        else:
-            raise APIError(f"POST Gecko Price to Overkill Failed: {api_response.text}")
+        api_response.raise_for_status()
+        return api_response.json()
 
     def get_watch_list_from_overkill(self):
         url = "{}/v1/coin/watch".format(APP_SETTINGS.overkill_api_url)
@@ -382,27 +454,26 @@ class DexScraper:
             **self._headers,
         }
         api_response = requests.get(url, headers=headers)
-        if api_response.status_code == 200:
-            return api_response.json()
-        else:
-            raise APIError(f"GET Watch List from Overkill Failed: {api_response.text}")
-        
-    def delete_coin_from_watch_list (self, token_data : dict):
+        api_response.raise_for_status()
+        return api_response.json()
+
+    def delete_coin_from_watch_list(self, token_data: dict):
         url = "https://api.princeofcrypto.com/v1/coin/watch"
         headers = {
             "x-api-key": APP_SETTINGS.x_api_key,
             "x-api-secret": APP_SETTINGS.x_api_secret,
             **self._headers,
         }
-        if not(token_data):
+        if not (token_data):
             raise APIError("No token information to delete")
         logger.info(token_data)
-        payload = {
-            "token_name": token_data['token_name'],
-            "token_ticker": token_data['token_ticker']
-        }
+        try:
+            payload = {
+                "token_name": token_data["token_name"],
+                "token_ticker": token_data["token_ticker"],
+            }
+        except KeyError as e:
+            raise APIError("Token name or ticker not found") from e
         api_response = requests.delete(url, headers=headers, json=payload)
-        if api_response.status_code == 200:
-            return api_response.json()
-        else:
-            raise APIError(f"DELETE Coin from Watch List from Overkill Failed: {api_response.text}")
+        api_response.raise_for_status()
+        return api_response.json()
