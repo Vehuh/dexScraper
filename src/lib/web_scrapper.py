@@ -266,6 +266,10 @@ class DexThreadManager:
                     network, token_address, **token_data
                 )
                 self.scrappers[f"{network}_{token_address}"].start()
+            for scrapper in self.scrappers.values():
+                if not scrapper.thread.is_alive():
+                    logger.warning(f"Thread for {scrapper} is not alive, restarting")
+                    scrapper.start()
         logger.info("Threads updated")
         logger.info(f"current size: {len(self.scrappers)}")
 
