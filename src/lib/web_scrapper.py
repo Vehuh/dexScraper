@@ -159,10 +159,13 @@ class DexThreadManager:
 
     @watch_list.setter
     def watch_list(self, value: list):
+        if len(value) >= self.threads_limit:
+            logger.error("Threads limit reached, setting maximum threads")
+            value = value[: self.threads_limit]
         self._watch_list_keys = [
             f"{token_data.get('token_network')}_{token_data.get('token_address')}"
             for token_data in value
-        ] 
+        ]
         self._watch_list = value
         self._manage_threads()
 
@@ -188,11 +191,8 @@ class DexThreadManager:
                 raise APIError("Token address or network not found") from e
             token_data.pop("token_network", None)  # Remove key if it exists
             token_data.pop("token_address", None)  # Remove key if it exists
-            if f"{network}_{token_address}" not in self.scrappers:
-                if len(self.scrappers) >= self.threads_limit:
-                    logger.error("Threads limit reached")
-                    break
-                logger.debug(token_data)
+            logger.debug(token_data)
+            if f"{network}_{token_address}" not in self.scrappers.keys():
                 self.scrappers[f"{network}_{token_address}"] = ScraperThread(
                     network, token_address, **token_data
                 )
@@ -386,23 +386,25 @@ class DexScraper:
             return api_response.json()
         else:
             raise APIError(f"GET Watch List from Overkill Failed: {api_response.text}")
-        
-    def delete_coin_from_watch_list (self, token_data : dict):
+
+    def delete_coin_from_watch_list(self, token_data: dict):
         url = "https://api.princeofcrypto.com/v1/coin/watch"
         headers = {
             "x-api-key": APP_SETTINGS.x_api_key,
             "x-api-secret": APP_SETTINGS.x_api_secret,
             **self._headers,
         }
-        if not(token_data):
+        if not (token_data):
             raise APIError("No token information to delete")
         logger.info(token_data)
         payload = {
-            "token_name": token_data['token_name'],
-            "token_ticker": token_data['token_ticker']
+            "token_name": token_data["token_name"],
+            "token_ticker": token_data["token_ticker"],
         }
         api_response = requests.delete(url, headers=headers, json=payload)
         if api_response.status_code == 200:
             return api_response.json()
         else:
-            raise APIError(f"DELETE Coin from Watch List from Overkill Failed: {api_response.text}")
+            raise APIError(
+                f"DELETE Coin from Watch List from Overkill Failed: {api_response.text}"
+            )
