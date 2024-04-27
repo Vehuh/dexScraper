@@ -124,6 +124,7 @@ class ScraperThread:
 
     def _run(self, *args, **kwargs):
         self.last_updated = int(time.time())
+        # TODO: fetch self.response_history from overkill API - if possible (because maybe the thread was stopped and restarted)
         while not self._stop_event.is_set():
             if "token_platform_address" not in kwargs:
                 _, self.pool_address, _ = self.scraper.get_top_pool_from_gecko(
@@ -391,7 +392,7 @@ class DexScraper:
             txs = top_pool["transactions"]
             vol = top_pool["volume_usd"]
             fdv = top_pool["fdv"]
-        except KeyError as e:
+        except (KeyError, IndexError) as e:
             raise GeckoTerminalAPIError("KeyError in get_top_pool_from_gecko") from e
         return (pool_name, pool_address, price)
 
@@ -419,8 +420,8 @@ class DexScraper:
             low = tohlcv[3]
             close = tohlcv[4]
             volume = tohlcv[5]
-        except KeyError as e:
-            raise GeckoTerminalAPIError("KeyError in get_ohlcv") from e
+        except (KeyError, IndexError) as e:
+            raise GeckoTerminalAPIError("Error in get_ohlcv") from e
         return (timestamp, open, high, low, close, volume)
 
     def post_gecko_data_to_overkill(self, data: dict):
